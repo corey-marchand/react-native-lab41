@@ -1,32 +1,81 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import { StyleSheet, FlatList, Text, View, Button, Linking } from 'react-native';
+import * as Expo from 'expo';
 
-const ListScreen = () => {
-  const friends = [
-    { name: 'Friend #1'},
-    { name: 'Friend #2'},
-    { name: 'Friend #3'},
-    { name: 'Friend #4'},
-    { name: 'Friend #5'},
-    { name: 'Friend #6'},
-    { name: 'Friend #7'},
-  ];
-  return (
-    <FlatList 
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyExtractor={friends => friends.name}
-      data={friends} 
-      renderItem={({ item }) => {
-      return <Text style={styles.textStyle}>{item.name}</Text>
-      }}
-    /> 
-  )
-};
-const styles = StyleSheet.create({
-  textStyle: {
-    marginVertical: 50
+export default class App extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      contacts:[],
+      permission:null,
+    };
   }
-});
 
-export default ListScreen;
+  async componentDidMount() {
+    const { status } = await Expo.Permissions.askAsync(Expo.Permissions.CONTACTS);
+    this.setState({ permission: status === 'granted' });
+  }
+
+  showContacts = async () => {
+    const contacts = await Expo.Contacts.getContactsAsync();
+    this.setState({contacts: contacts.data});
+  };
+
+  call = contact => {
+    let phoneNumber = contact.phoneNumbers[0].number.replace(/[\(\)\-\s+]/g, '');
+    let link = `tel:${phoneNumber}`;
+    Linking.canOpenURL(link)
+    .then((supported) => Linking.openURL(link) )
+    .catch(console.error);
+  };
+
+  keyExtractor = item => item.id;
+
+  render() {
+    return (
+      <View style={styles.container}>
+        <Button
+          onPress={this.showContacts}
+          title="Show Contacts"
+        />
+
+        <View style={styles.section}>
+          <Text></Text>
+          {
+            this.state.contacts && this.state.contacts.map( (contact,i) =>
+              <Text key={i}>{contact.name}</Text>
+            )
+          }
+        </View>
+
+        <View style={styles.section}>
+          <FlatList
+            data={this.state.contacts}
+            keyExtractor={(item) => item.id}
+            renderItem={({item}) => <Button title={item.name} style={styles.person} onPress={() => this.call(item)} />}
+          />
+        </View>
+      </View>
+    );
+  }
+}
+
+const styles = StyleSheet.create({
+  person: {
+    marginTop:"1em"
+  },
+  section: {
+    margin: 10,
+    flex: 1,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  container: {
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    flex: 1,
+    justifyContent: 'center',
+    marginTop: 25,
+  },
+});
